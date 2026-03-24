@@ -10,7 +10,6 @@ const LEVELS = [
   { value: 'C1', label: 'C1 – Advanced' },
 ]
 
-// Task 13: Predefined topic list (from USER_FLOW.md)
 const PRESET_TOPICS = [
   'Daily life',
   'Travel',
@@ -23,21 +22,28 @@ const PRESET_TOPICS = [
   'Custom…',
 ]
 
-// Task 14: localStorage cache helpers
+const LANGUAGES = [
+  { value: 'English', label: 'English' },
+  { value: 'Chinese', label: '中文' },
+]
+
+const SUBLEVELS = Array.from({ length: 10 }, (_, i) => i + 1)
+
+// Cache helpers — keyed by language + level + sublevel + topic
 const CACHE_PREFIX = 'ican_story_'
 
-function getCached(level: string, topic: string): string | null {
+function getCached(language: string, level: string, sublevel: number, topic: string): string | null {
   try {
-    const key = `${CACHE_PREFIX}${level}_${topic.toLowerCase().trim()}`
+    const key = `${CACHE_PREFIX}${language}_${level}_${sublevel}_${topic.toLowerCase().trim()}`
     return localStorage.getItem(key)
   } catch {
     return null
   }
 }
 
-function setCache(level: string, topic: string, story: string) {
+function setCache(language: string, level: string, sublevel: number, topic: string, story: string) {
   try {
-    const key = `${CACHE_PREFIX}${level}_${topic.toLowerCase().trim()}`
+    const key = `${CACHE_PREFIX}${language}_${level}_${sublevel}_${topic.toLowerCase().trim()}`
     localStorage.setItem(key, story)
   } catch {
     // localStorage unavailable — fail silently
@@ -45,7 +51,9 @@ function setCache(level: string, topic: string, story: string) {
 }
 
 export default function Home() {
+  const [language, setLanguage] = useState('English')
   const [level, setLevel] = useState('B1')
+  const [sublevel, setSublevel] = useState(1)
   const [selectedTopic, setSelectedTopic] = useState(PRESET_TOPICS[0])
   const [customTopic, setCustomTopic] = useState('')
   const [story, setStory] = useState('')
@@ -67,9 +75,8 @@ export default function Home() {
     setFromCache(false)
     setError('')
 
-    // Task 14: check cache unless user wants a fresh story
     if (!forceNew) {
-      const cached = getCached(level, topic)
+      const cached = getCached(language, level, sublevel, topic)
       if (cached) {
         setStory(cached)
         setFromCache(true)
@@ -82,12 +89,12 @@ export default function Home() {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level, topic }),
+        body: JSON.stringify({ language, level, sublevel, topic }),
       })
       if (!res.ok) throw new Error('Failed to generate story')
       const data = await res.json()
       setStory(data.story)
-      setCache(level, topic, data.story) // Task 14: save to cache
+      setCache(language, level, sublevel, topic, data.story)
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {
@@ -127,10 +134,31 @@ export default function Home() {
         </div>
 
         {/* Form card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+
+          {/* Language toggle */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Language</label>
+            <div className="flex gap-2">
+              {LANGUAGES.map((lang) => (
+                <button
+                  key={lang.value}
+                  onClick={() => setLanguage(lang.value)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                    language === lang.value
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {lang.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Level */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Level</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Level</label>
             <select
               value={level}
               onChange={(e) => setLevel(e.target.value)}
@@ -142,9 +170,32 @@ export default function Home() {
             </select>
           </div>
 
-          {/* Topic — Task 13: dropdown of presets */}
+          {/* Sub-level 1–10 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Topic</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Sub-level
+              <span className="ml-2 text-xs text-gray-400 font-normal">(vocabulary range within {level})</span>
+            </label>
+            <div className="grid grid-cols-5 gap-1.5">
+              {SUBLEVELS.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setSublevel(n)}
+                  className={`py-2 rounded-xl text-sm font-semibold transition-colors ${
+                    sublevel === n
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Topic */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Topic</label>
             <select
               value={selectedTopic}
               onChange={(e) => setSelectedTopic(e.target.value)}
@@ -156,7 +207,6 @@ export default function Home() {
             </select>
           </div>
 
-          {/* Custom topic input — shown only when "Custom…" is selected */}
           {isCustom && (
             <div>
               <input
@@ -190,9 +240,8 @@ export default function Home() {
           <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-widest text-blue-500">
-                {level} · {topic}
+                {language} · {level}.{sublevel} · {topic}
               </span>
-              {/* Task 14: show cache indicator + regenerate option */}
               {fromCache && (
                 <button
                   onClick={() => generateStory(true)}
