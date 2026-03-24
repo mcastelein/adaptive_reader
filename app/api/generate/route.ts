@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
+import { getVocab, formatVocabForPrompt } from '@/lib/vocab/chinese'
 
 const LEVEL_DESCRIPTIONS: Record<string, string> = {
   A1: 'absolute beginner — very short sentences, very simple everyday vocabulary',
@@ -7,14 +8,6 @@ const LEVEL_DESCRIPTIONS: Record<string, string> = {
   B1: 'intermediate — varied sentences, common vocabulary',
   B2: 'upper intermediate — more complex sentences, wider vocabulary',
   C1: 'advanced — sophisticated language, rich and nuanced vocabulary',
-}
-
-// Describes where sub-level sits within the CEFR band.
-// Vocab lists will be injected here in a future update.
-function sublevelDescription(sublevel: number): string {
-  if (sublevel <= 3) return `early ${sublevel}/10 — foundational vocabulary for this level`
-  if (sublevel <= 6) return `mid ${sublevel}/10 — mid-range vocabulary for this level`
-  return `upper ${sublevel}/10 — more challenging vocabulary for this level`
 }
 
 export async function POST(req: NextRequest) {
@@ -27,12 +20,19 @@ export async function POST(req: NextRequest) {
     }
 
     const levelDesc = LEVEL_DESCRIPTIONS[level] ?? LEVEL_DESCRIPTIONS['B1']
-    const sublevelDesc = sublevel ? sublevelDescription(Number(sublevel)) : ''
+    const sublevelNum = Number(sublevel) || 1
 
     const languageInstruction =
       language === 'Chinese'
         ? 'Write the story entirely in Simplified Chinese (Mandarin).'
         : 'Write the story in English.'
+
+    // Inject vocab list if available for this level + sub-level
+    const vocabWords = language === 'Chinese' ? getVocab(level, sublevelNum) : []
+    const vocabSection =
+      vocabWords.length > 0
+        ? `\n\nTarget vocabulary for ${level}.${sublevelNum} — try to use these words naturally in the story:\n${formatVocabForPrompt(vocabWords)}`
+        : ''
 
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -42,9 +42,11 @@ export async function POST(req: NextRequest) {
           role: 'user',
           content: `${languageInstruction}
 
-Write a short story for a language learner at ${level} level (${levelDesc}), sub-level ${sublevel} (${sublevelDesc}), about the topic: "${topic}".
+Write a short story for a language learner at ${level} level (${levelDesc}), sub-level ${sublevelNum}/10, about the topic: "${topic}".
 
-The story should be engaging and easy to follow. Use vocabulary and grammar exactly appropriate for ${level}.${sublevel ? ` Aim for the vocabulary difficulty of sub-level ${sublevel}/10 within ${level}.` : ''} Do not include a title, heading, or any explanation — just the story itself.`,
+The story should be engaging and easy to follow. Use vocabulary and grammar appropriate for ${level}.${sublevelNum ? ` Aim for vocabulary difficulty at sub-level ${sublevelNum}/10 within ${level}.` : ''}${vocabSection}
+
+Do not include a title, heading, or any explanation — just the story itself.`,
         },
       ],
     })
