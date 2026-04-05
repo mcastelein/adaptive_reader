@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function POST(req: NextRequest) {
   const openai = new OpenAI()
   try {
-    const { text } = await req.json()
+    const { text, voice } = await req.json()
 
     if (!text) {
       return NextResponse.json({ error: 'Missing text' }, { status: 400 })
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
     const response = await openai.audio.speech.create({
       model: 'tts-1',
-      voice: 'alloy',
+      voice: voice || 'alloy',
       input: text,
     })
 

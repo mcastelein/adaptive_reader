@@ -1,275 +1,226 @@
 'use client'
 
-import { useState } from 'react'
+import Link from 'next/link'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import type { User } from '@supabase/supabase-js'
 
-const LEVELS = [
-  { value: 'A1', label: 'A1 – Beginner' },
-  { value: 'A2', label: 'A2 – Elementary' },
-  { value: 'B1', label: 'B1 – Intermediate' },
-  { value: 'B2', label: 'B2 – Upper Intermediate' },
-  { value: 'C1', label: 'C1 – Advanced' },
+const FEATURES = [
+  {
+    name: 'Adaptive Reader',
+    description: 'Read stories at your level',
+    href: '/reader',
+    icon: (
+      <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+      </svg>
+    ),
+    available: true,
+    accent: '#3b82f6',
+    glow: 'rgba(59,130,246,0.55)',
+  },
+  {
+    name: 'AI Conversation',
+    description: 'Speak with an AI partner',
+    href: '/conversation',
+    icon: (
+      <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
+      </svg>
+    ),
+    available: true,
+    accent: '#22d3ee',
+    glow: 'rgba(34,211,238,0.55)',
+  },
+  {
+    name: 'Flashcards',
+    description: 'Spaced repetition review',
+    href: '/flashcards',
+    icon: (
+      <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75 2.25 12l4.179 2.25m0-4.5 5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0 4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0-5.571 3-5.571-3" />
+      </svg>
+    ),
+    available: false,
+    accent: '#a78bfa',
+    glow: 'rgba(167,139,250,0.55)',
+  },
+  {
+    name: 'Graded News',
+    description: 'Real content at your level',
+    href: '/graded-input',
+    icon: (
+      <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z" />
+      </svg>
+    ),
+    available: false,
+    accent: '#fb923c',
+    glow: 'rgba(251,146,60,0.55)',
+  },
+  {
+    name: 'Pronunciation',
+    description: 'Score your tones and speech',
+    href: '/pronunciation',
+    icon: (
+      <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+      </svg>
+    ),
+    available: false,
+    accent: '#f472b6',
+    glow: 'rgba(244,114,182,0.55)',
+  },
 ]
 
-const PRESET_TOPICS = [
-  'Daily life',
-  'Travel',
-  'Food & cooking',
-  'Nature & animals',
-  'Business',
-  'Health & fitness',
-  'Technology',
-  'Culture & traditions',
-  'Custom…',
-]
+export default function HomePage() {
+  const [hovered, setHovered] = useState<number | null>(null)
+  const [user, setUser] = useState<User | null>(null)
 
-const LANGUAGES = [
-  { value: 'English', label: 'English' },
-  { value: 'Chinese', label: '中文' },
-]
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+  }, [])
 
-const SUBLEVELS = Array.from({ length: 10 }, (_, i) => i + 1)
-
-// Cache helpers — keyed by language + level + sublevel + topic
-const CACHE_PREFIX = 'ican_story_'
-
-function getCached(language: string, level: string, sublevel: number, topic: string): string | null {
-  try {
-    const key = `${CACHE_PREFIX}${language}_${level}_${sublevel}_${topic.toLowerCase().trim()}`
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
-
-function setCache(language: string, level: string, sublevel: number, topic: string, story: string) {
-  try {
-    const key = `${CACHE_PREFIX}${language}_${level}_${sublevel}_${topic.toLowerCase().trim()}`
-    localStorage.setItem(key, story)
-  } catch {
-    // localStorage unavailable — fail silently
-  }
-}
-
-export default function Home() {
-  const [language, setLanguage] = useState('English')
-  const [level, setLevel] = useState('B1')
-  const [sublevel, setSublevel] = useState(1)
-  const [selectedTopic, setSelectedTopic] = useState(PRESET_TOPICS[0])
-  const [customTopic, setCustomTopic] = useState('')
-  const [story, setStory] = useState('')
-  const [fromCache, setFromCache] = useState(false)
-  const [audioUrl, setAudioUrl] = useState('')
-  const [loadingStory, setLoadingStory] = useState(false)
-  const [loadingAudio, setLoadingAudio] = useState(false)
-  const [error, setError] = useState('')
-
-  const isCustom = selectedTopic === 'Custom…'
-  const topic = isCustom ? customTopic : selectedTopic
-  const canGenerate = topic.trim().length > 0
-
-  async function generateStory(forceNew = false) {
-    if (!canGenerate) return
-    setLoadingStory(true)
-    setStory('')
-    setAudioUrl('')
-    setFromCache(false)
-    setError('')
-
-    if (!forceNew) {
-      const cached = getCached(language, level, sublevel, topic)
-      if (cached) {
-        setStory(cached)
-        setFromCache(true)
-        setLoadingStory(false)
-        return
-      }
-    }
-
-    try {
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ language, level, sublevel, topic }),
-      })
-      if (!res.ok) throw new Error('Failed to generate story')
-      const data = await res.json()
-      setStory(data.story)
-      setCache(language, level, sublevel, topic, data.story)
-    } catch {
-      setError('Something went wrong. Please try again.')
-    } finally {
-      setLoadingStory(false)
-    }
-  }
-
-  async function generateAudio() {
-    if (!story) return
-    setLoadingAudio(true)
-    setError('')
-    try {
-      const res = await fetch('/api/audio', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: story }),
-      })
-      if (!res.ok) throw new Error('Failed to generate audio')
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      setAudioUrl(url)
-    } catch {
-      setError('Could not generate audio. Please try again.')
-    } finally {
-      setLoadingAudio(false)
-    }
+  async function handleSignOut() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-4 py-10">
-      <div className="w-full max-w-lg">
+    <main
+      className="min-h-screen flex flex-col items-center px-4 py-14"
+      style={{ background: 'radial-gradient(ellipse 80% 60% at 50% -10%, #0d1f4e 0%, #060b18 55%, #020408 100%)' }}
+    >
+      <div className="w-full max-w-xl">
 
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold text-blue-600 tracking-tight">I CAN</h1>
-          <p className="text-gray-500 mt-2">Read stories at your level</p>
-        </div>
-
-        {/* Form card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-
-          {/* Language toggle */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Language</label>
-            <div className="flex gap-2">
-              {LANGUAGES.map((lang) => (
-                <button
-                  key={lang.value}
-                  onClick={() => setLanguage(lang.value)}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                    language === lang.value
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {lang.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Level */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Level</label>
-            <select
-              value={level}
-              onChange={(e) => setLevel(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        {/* Logo / header */}
+        <div className="text-center mb-14">
+          <div className="inline-block mb-4">
+            <h1
+              className="text-7xl font-black tracking-tight"
+              style={{
+                background: 'linear-gradient(135deg, #60a5fa 0%, #38bdf8 40%, #818cf8 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                filter: 'drop-shadow(0 0 30px rgba(96,165,250,0.4))',
+              }}
             >
-              {LEVELS.map((l) => (
-                <option key={l.value} value={l.value}>{l.label}</option>
-              ))}
-            </select>
+              I CAN
+            </h1>
           </div>
-
-          {/* Sub-level 1–10 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Sub-level
-              <span className="ml-2 text-xs text-gray-400 font-normal">(vocabulary range within {level})</span>
-            </label>
-            <div className="grid grid-cols-5 gap-1.5">
-              {SUBLEVELS.map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setSublevel(n)}
-                  className={`py-2 rounded-xl text-sm font-semibold transition-colors ${
-                    sublevel === n
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Topic */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Topic</label>
-            <select
-              value={selectedTopic}
-              onChange={(e) => setSelectedTopic(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {PRESET_TOPICS.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-
-          {isCustom && (
-            <div>
-              <input
-                type="text"
-                value={customTopic}
-                onChange={(e) => setCustomTopic(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && generateStory()}
-                placeholder="Enter your topic…"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                autoFocus
-              />
+          <p className="text-slate-400 text-base tracking-wide">AI-powered language learning</p>
+          {user && (
+            <div className="mt-4 flex items-center justify-center gap-3">
+              <span className="text-sm text-slate-400">
+                {user.user_metadata?.full_name || user.email}
+              </span>
+              <button
+                onClick={handleSignOut}
+                className="text-xs text-slate-500 hover:text-slate-300 border border-slate-700 hover:border-slate-500 px-3 py-1 rounded-lg transition-colors"
+              >
+                Sign out
+              </button>
             </div>
           )}
-
-          <button
-            onClick={() => generateStory()}
-            disabled={loadingStory || !canGenerate}
-            className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 active:scale-95 transition-all"
-          >
-            {loadingStory ? 'Generating…' : 'Generate Story'}
-          </button>
         </div>
 
-        {/* Error */}
-        {error && (
-          <p className="mt-4 text-center text-red-500 text-sm">{error}</p>
-        )}
+        {/* 2-column feature grid */}
+        <div className="grid grid-cols-2 gap-4">
+          {FEATURES.map((f, i) => {
+            const isHovered = hovered === i && f.available
+            const isLast = i === FEATURES.length - 1 && FEATURES.length % 2 !== 0
 
-        {/* Story card */}
-        {story && (
-          <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-widest text-blue-500">
-                {language} · {level}.{sublevel} · {topic}
-              </span>
-              {fromCache && (
-                <button
-                  onClick={() => generateStory(true)}
-                  className="text-xs text-gray-400 hover:text-blue-500 transition-colors"
-                  title="Generate a fresh story"
+            const card = (
+              <div
+                onMouseEnter={() => setHovered(i)}
+                onMouseLeave={() => setHovered(null)}
+                style={{
+                  background: isHovered
+                    ? `linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)`
+                    : `linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)`,
+                  borderColor: isHovered ? `${f.accent}55` : 'rgba(255,255,255,0.07)',
+                  boxShadow: isHovered
+                    ? `0 0 0 1px ${f.accent}40, 0 0 25px ${f.glow}, 0 0 60px ${f.glow.replace('0.55', '0.2')}`
+                    : '0 0 0 1px rgba(255,255,255,0.06)',
+                  transition: 'all 0.25s ease',
+                }}
+                className={`relative rounded-2xl border p-5 flex flex-col gap-4 ${
+                  f.available ? 'cursor-pointer' : 'cursor-default'
+                } ${isLast ? 'col-span-2' : ''}`}
+              >
+                {/* Icon circle */}
+                <div
+                  style={{
+                    background: `linear-gradient(135deg, ${f.accent}25, ${f.accent}08)`,
+                    boxShadow: isHovered ? `0 0 18px ${f.glow}` : 'none',
+                    transition: 'box-shadow 0.25s ease',
+                  }}
+                  className="w-11 h-11 rounded-xl flex items-center justify-center"
                 >
-                  ↺ Regenerate
-                </button>
-              )}
-            </div>
+                  <span style={{ color: isHovered ? f.accent : `${f.accent}bb` }}>
+                    {f.icon}
+                  </span>
+                </div>
 
-            <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-base">{story}</p>
+                {/* Text */}
+                <div>
+                  <h2
+                    className="text-sm font-semibold transition-colors duration-200"
+                    style={{ color: isHovered ? '#f1f5f9' : '#cbd5e1' }}
+                  >
+                    {f.name}
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{f.description}</p>
+                </div>
 
-            <div className="mt-5 pt-4 border-t border-gray-100">
-              {!audioUrl ? (
-                <button
-                  onClick={generateAudio}
-                  disabled={loadingAudio}
-                  className="flex items-center gap-2 text-sm text-blue-600 border border-blue-200 px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors disabled:opacity-50"
-                >
-                  {loadingAudio ? '🎵 Generating audio…' : '🔊 Listen to story'}
-                </button>
-              ) : (
-                <audio controls src={audioUrl} className="w-full" autoPlay />
-              )}
-            </div>
-          </div>
-        )}
+                {/* Coming soon pill */}
+                {!f.available && (
+                  <span
+                    className="absolute top-3.5 right-3.5 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      color: 'rgba(255,255,255,0.25)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    Soon
+                  </span>
+                )}
+
+                {/* Arrow for available cards */}
+                {f.available && (
+                  <svg
+                    className="absolute bottom-4 right-4 w-4 h-4 transition-all duration-200"
+                    style={{
+                      color: isHovered ? f.accent : 'rgba(255,255,255,0.15)',
+                      transform: isHovered ? 'translateX(2px)' : 'none',
+                    }}
+                    fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                  </svg>
+                )}
+              </div>
+            )
+
+            return f.available ? (
+              <Link key={f.name} href={f.href} className={`block ${isLast ? 'col-span-2' : ''}`}>
+                {card}
+              </Link>
+            ) : (
+              <div key={f.name} className={`opacity-40 ${isLast ? 'col-span-2' : ''}`}>
+                {card}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Footer */}
+        <p className="text-center text-slate-700 text-xs mt-12 tracking-widest uppercase">
+          Powered by Claude · OpenAI
+        </p>
       </div>
     </main>
   )

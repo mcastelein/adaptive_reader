@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**I CAN App** — An adaptive language learning web app that generates personalized stories (A1–C1 CEFR levels) with optional audio playback. Built with Next.js, deployed on Vercel.
+**I CAN** — A full language learning platform. Adaptive stories, AI conversation partner, flashcards/SRS, pronunciation grading, and graded real-world content (news, articles). Built with Next.js, deployed on Vercel.
+
+See `docs/ARCHITECTURE.md` for full system architecture.
+See `docs/AGENT_ROLES.md` for the agent flywheel development workflow.
+See `docs/features/` for individual feature specs.
 
 ## Commands
 
@@ -17,22 +21,43 @@ npm run lint         # ESLint
 
 ## Architecture
 
-Single Next.js 15 monorepo (App Router) — frontend and backend colocated:
+Next.js 15 monorepo (App Router) — feature-folder structure:
 
 ```
 app/
-  page.tsx               # Main UI: level selector, topic input, story display, audio player
-  layout.tsx             # Root layout + metadata
-  globals.css            # Tailwind imports
+  page.tsx                    # Home/landing: feature cards
+  (features)/
+    reader/page.tsx           # Adaptive story reader
+    conversation/page.tsx     # AI conversation partner
+    flashcards/page.tsx       # SRS flashcard review
+    pronunciation/page.tsx    # Pronunciation grading
+    graded-input/page.tsx     # Graded news/content
   api/
-    generate/route.ts    # POST {level, topic} → {story} via Claude (claude-haiku-4-5)
-    audio/route.ts       # POST {text} → audio/mpeg blob via OpenAI TTS (tts-1, voice: alloy)
+    generate/route.ts         # POST → story via Claude
+    audio/route.ts            # POST → TTS via OpenAI
+    transcribe/route.ts       # POST → STT via Whisper
+    conversation/route.ts     # POST → conversation reply via Claude
+    flashcards/route.ts       # POST → flashcard generation
+    pronunciation/route.ts    # POST → pronunciation scoring
+    graded-input/route.ts     # POST → content rewriting
+
+lib/
+  vocab/chinese.ts            # HSK vocab A1–C1
+  prompts/                    # Shared Claude prompt templates
+  types/                      # Shared TypeScript interfaces
+
+docs/
+  ARCHITECTURE.md
+  AGENT_ROLES.md
+  features/                   # Per-feature specs
 ```
 
 ## AI Services
 
-- **Story generation:** Anthropic Claude (`claude-haiku-4-5-20251001`) — cheap and fast
-- **Text-to-speech:** OpenAI TTS (`tts-1`, voice `alloy`) — audio returned as `audio/mpeg` buffer
+- **Story generation:** Anthropic Claude (`claude-haiku-4-5-20251001`)
+- **Conversation:** Anthropic Claude (`claude-haiku-4-5-20251001`)
+- **Text-to-speech:** OpenAI TTS (`tts-1`, voice `alloy`)
+- **Speech-to-text:** OpenAI Whisper (`whisper-1`)
 
 ## Environment Variables
 
@@ -47,7 +72,9 @@ On Vercel, add these in Project Settings → Environment Variables.
 
 ## Key Design Decisions
 
-- Audio is generated on demand (user clicks "Listen"), not automatically — saves API cost
-- Frontend creates an object URL from the audio blob for HTML5 `<audio>` playback
-- No database or auth in V1 — stateless, no caching yet (planned: cache by level+topic key)
+- Audio generated on demand — saves API cost
+- Only target language audio plays; English translations are text-only
+- No database or auth in V1 — stateless, session state in React
 - Mobile-first layout, max-width `lg` centered container
+- Words from reader/conversation/news feed into flashcard queue
+- Agent flywheel: Agent 1 specs → Agent 2 codes → Agent 3 QAs (see `docs/AGENT_ROLES.md`)
